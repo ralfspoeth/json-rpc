@@ -1,4 +1,4 @@
-package io.github.ralfspoeth.jsonrpc;
+package io.github.ralfspoeth.jsonrpc.test;
 
 import io.github.ralfspoeth.json.Greyson;
 import io.github.ralfspoeth.json.data.Basic;
@@ -6,10 +6,13 @@ import io.github.ralfspoeth.json.data.JsonNull;
 import io.github.ralfspoeth.json.data.JsonNumber;
 import io.github.ralfspoeth.json.data.JsonString;
 import io.github.ralfspoeth.json.query.Selector;
+import io.github.ralfspoeth.jsonrpc.Id;
+import io.github.ralfspoeth.jsonrpc.JsonRpcServlet;
+import io.github.ralfspoeth.jsonrpc.ResponseObject;
 import io.github.ralfspoeth.utf8.Utf8Reader;
 import jakarta.servlet.http.HttpServletResponse;
-import org.eclipse.jetty.ee11.servlet.ServletContextHandler; // Note the 'ee11'
-import org.eclipse.jetty.ee11.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler; // Note the 'ee11'
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.junit.jupiter.api.AfterAll;
@@ -87,8 +90,8 @@ public class GreysonEE11IntegrationTest {
                 responses = Greyson.readValue(rdr).stream().flatMap(Selector.all())
                         .map(jo -> new ResponseObject(
                                 switch (jo.get("id").orElseThrow()) {
-                                    case JsonString(var s) -> new IdType.StringId(s);
-                                    case JsonNumber(var d) -> new IdType.IntId(d.intValueExact());
+                                    case JsonString(var s) -> new Id.StringId(s);
+                                    case JsonNumber(var d) -> new Id.IntId(d.intValueExact());
                                     default -> throw new IllegalStateException();
                                 },
                                 jo.get("result").orElse(JsonNull.INSTANCE)

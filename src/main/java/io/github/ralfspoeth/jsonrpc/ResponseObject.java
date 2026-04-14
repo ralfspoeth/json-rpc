@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 import java.math.BigDecimal;
 import java.util.Objects;
 
-public record ResponseObject(IdType id, @Nullable JsonValue result, @Nullable JsonObject error) {
+public record ResponseObject(Id id, @Nullable JsonValue result, @Nullable JsonObject error) {
     public ResponseObject {
         Objects.requireNonNull(id);
         if(result == null &&  error == null

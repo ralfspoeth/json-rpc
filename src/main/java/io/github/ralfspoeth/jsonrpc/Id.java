@@ -1,13 +1,13 @@
 package io.github.ralfspoeth.jsonrpc;
 
-sealed interface IdType {
-    record IntId(int id) implements IdType {
+public sealed interface Id {
+    record IntId(int id) implements Id {
         @Override
         public String toString() {
             return Integer.toString(id);
         }
     }
-    record StringId(String id) implements IdType {
+    record StringId(String id) implements Id {
         @Override
         public String toString() {
             return id;

@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,24 +44,12 @@ public class JsonRpcServlet extends HttpServlet {
                         .parallel()
                         .filter(r -> r.get("jsonrpc").flatMap(JsonValue::string).filter("2.0"::equals).isPresent())
                         .map(r -> new RequestObject(
-                                switch (r.get("id").orElse(JsonNull.INSTANCE)) {
-                                    case JsonString(var s) -> new IdType.StringId(s);
-                                    case JsonNumber(var n) -> new IdType.IntId(n.intValue());
-                                    case JsonNull _ -> null;
-                                    case JsonBoolean(var b) -> throw new IllegalStateException(
-                                            "boolean " + b + " is not a valid id"
-                                    );
-                                    case null, default -> throw new IllegalStateException(
-                                            "illegal id " + r.get("id")
-                                                    .map(JsonValue::json)
-                                                    .orElse("")
-                                    );
-                                },
+                                from(r.get("id").orElse(JsonNull.INSTANCE)),
                                 r.get("method").flatMap(JsonValue::string).orElseThrow(),
                                 r.get("params").map(Queries::asObject)
                                         .map(o -> switch (o) {
-                                            case List<?> l -> new ParamType.ArrayParam(l);
-                                            case Map<?, ?> m -> new ParamType.MapParam((Map<String, ?>) m);
+                                            case List<?> l -> new Params.ArrayParams(l);
+                                            case Map<?, ?> m -> new Params.MapParams((Map<String, ?>) m);
                                             case null, default -> throw new IllegalArgumentException("illegal " + o);
                                         })
                                         .orElse(null)
@@ -71,10 +60,7 @@ public class JsonRpcServlet extends HttpServlet {
                 var ja = responses.stream()
                         .map(ro -> objectBuilder()
                                 .putBasic("jsonrpc", "2.0")
-                                .putBasic("id", switch (ro.id()) {
-                                    case IdType.IntId(int i) -> "%d".formatted(i);
-                                    case IdType.StringId(var s) -> "\"%s\"".formatted(s);
-                                })
+                                .putBasic("id", from(ro.id()))
                                 .put(ro.error() == null ? "result" : "error",
                                         ro.error() == null ? Objects.requireNonNull(ro.result()) : ro.error()
                                 ).build())
@@ -89,4 +75,26 @@ public class JsonRpcServlet extends HttpServlet {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         }
     }
+
+    private static @Nullable Id from(JsonValue value) {
+        return switch(value) {
+            case JsonString(var s) -> new Id.StringId(s);
+            case JsonNumber(var n) -> new Id.IntId(n.intValue());
+            case JsonNull _ -> null;
+            case JsonBoolean(var b) -> throw new IllegalStateException(
+                    "boolean " + b + " is not a valid id"
+            );
+            case Aggregate a -> throw new IllegalStateException(
+                    "illegal id " + a
+            );
+        };
+    }
+
+    private static JsonValue from(Id id) {
+        return  switch (id) {
+            case Id.IntId(int n) -> new JsonNumber(BigDecimal.valueOf(n));
+            case Id.StringId(var s) -> new JsonString(s);
+        };
+    }
+
 }

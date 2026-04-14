@@ -4,7 +4,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
-public record RequestObject(@Nullable IdType id, String method, @Nullable ParamType params) {
+public record RequestObject(@Nullable Id id, String method, @Nullable Params params) {
     public RequestObject {
         method = Objects.requireNonNull(method, "method is null");
     }
