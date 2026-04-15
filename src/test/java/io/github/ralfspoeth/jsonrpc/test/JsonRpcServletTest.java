@@ -1,8 +1,7 @@
 package io.github.ralfspoeth.jsonrpc.test;
 
-import io.github.ralfspoeth.json.data.Basic;
 import io.github.ralfspoeth.jsonrpc.JsonRpcServlet;
-import io.github.ralfspoeth.jsonrpc.ResponseObject;
+import io.github.ralfspoeth.jsonrpc.Params;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,6 +10,9 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -69,7 +71,15 @@ class JsonRpcServletTest {
                 // ignored
             }
         });
-        var servlet = new JsonRpcServlet(ro -> new ResponseObject(ro.id(), Basic.of(ro.method()), null));
+        var servlet = new JsonRpcServlet(
+                Map.of("hello", p -> switch (p) {
+                    case Params.ArrayParams(List<?> ap) -> ap.stream()
+                            .map(x -> "Hello" + x)
+                            .collect(Collectors.joining(", "));
+                    case Params.MapParams(Map<?, ?> mp) -> mp.entrySet().stream()
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                })
+        );
         servlet.doPost(req, resp);
     }
 }
