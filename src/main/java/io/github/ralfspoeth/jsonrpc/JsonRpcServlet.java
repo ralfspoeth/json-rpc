@@ -88,8 +88,10 @@ public class JsonRpcServlet extends HttpServlet {
 
     private JsonObject invalidRequest(JsonValue request) {
         return objectBuilder()
-                .putBasic("id", id(request))
-                .put("error", objectBuilder().putBasic("code", -32600))
+                .putBasic("jsonrpc", "2.0")
+                .put("error", objectBuilder()
+                        .putBasic("code", -32600)
+                        .putBasic("message", "Invalid request"))
                 .build();
     }
 
@@ -120,7 +122,9 @@ public class JsonRpcServlet extends HttpServlet {
                     ob.putBasic("result", result);
 
                 } catch (Exception ex) {
-                    ob.put("error", objectBuilder().putBasic("code", -32000)).putBasic("message", ex.getMessage());
+                    ob.put("error", objectBuilder()
+                            .putBasic("code", -32000)
+                            .putBasic("message", ex.getMessage()));
                 }
             }
             return ob.build();
