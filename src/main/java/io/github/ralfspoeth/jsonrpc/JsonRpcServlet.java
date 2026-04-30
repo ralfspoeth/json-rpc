@@ -17,24 +17,23 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import static io.github.ralfspoeth.json.data.Builder.objectBuilder;
 
 public class JsonRpcServlet extends HttpServlet {
 
+    private static final String JSON_CONTENT_TYPE = "application/json";
     private final Map<String, Service> dispatcher;
 
-    public JsonRpcServlet(Map<String, Service> dispather) {
-        this.dispatcher = dispather;
+    public JsonRpcServlet(Map<String, Service> dispatcher) {
+        this.dispatcher = dispatcher;
     }
 
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        var inputContentType = req.getContentType();
-        if (Set.of("application/json", "text/json").contains(inputContentType)) {
-            resp.setContentType("application/json");
+        if (JSON_CONTENT_TYPE.equals(req.getContentType())) {
+            resp.setContentType(JSON_CONTENT_TYPE);
             try (var is = req.getInputStream();
                  var rdr = new Utf8Reader(is);
                  var os = resp.getOutputStream();
@@ -45,24 +44,27 @@ public class JsonRpcServlet extends HttpServlet {
                             .readValue(rdr)
                             .orElseThrow(() -> new JsonParseException("empty input", 0, 0));
 
-                    boolean isBatchRequest = request instanceof JsonArray;
+                    // empty batch request
+                    if (request instanceof JsonArray(var l) && l.isEmpty()) {
+                        Greyson.writeValue(wrt, invalidRequest());
+                        return;
+                    }
 
                     var responses = Stream.of(request)
                             .flatMap(Selector.all())
                             .parallel()
-                            .map(r -> isValid(r) ? invokeService(r) : invalidRequest(r))
+                            .map(r -> isValid(r) ? invokeService(r) : invalidRequest())
                             .filter(Objects::nonNull)
                             .toList();
 
                     if (!responses.isEmpty()) {
-                        if (isBatchRequest) {
+                        if (request instanceof JsonArray) {
                             Greyson.writeValue(wrt, responses.stream().collect(Queries.toJsonArray()));
                         } else {
                             assert responses.size() == 1;
                             Greyson.writeValue(wrt, responses.getFirst());
                         }
                     }
-
                 }
                 // parse exception with code -32700
                 catch (JsonParseException e) {
@@ -75,20 +77,23 @@ public class JsonRpcServlet extends HttpServlet {
                             ));
                 }
             }
+        } else {
+            resp.setStatus(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
         }
     }
 
     private boolean isValid(JsonValue request) {
         return request instanceof JsonObject(var members) &&
-                members.keySet().containsAll(Set.of("method", "jsonrpc")) &&
-                members.getOrDefault("jsonrpc", Basic.of("")).equals(Basic.of("2.0")) &&
+                request.get("jsonrpc").flatMap(JsonValue::string).orElse("").equals("2.0") &&
+                request.get("method").filter(JsonString.class::isInstance).isPresent() &&
                 isValidOrNullId(members.get("id")) &&
                 isValidOrNullParams(members.get("params"));
     }
 
-    private JsonObject invalidRequest(JsonValue request) {
+    private JsonObject invalidRequest() {
         return objectBuilder()
                 .putBasic("jsonrpc", "2.0")
+                .putBasic("id", null)
                 .put("error", objectBuilder()
                         .putBasic("code", -32600)
                         .putBasic("message", "Invalid request"))
@@ -100,12 +105,15 @@ public class JsonRpcServlet extends HttpServlet {
         var id = id(request);
         var params = params(request);
         var service = dispatcher.get(method);
-        // no id -> notification
+
+        // notification
         if (id == null) {
-            try {
+            if(service!=null) try {
                 service.notification(params);
             } catch (Exception ex) {
-                ex.printStackTrace();
+                getServletContext().log("method " + method + " call failed", ex);
+            } else {
+                getServletContext().log("method " + method + " not found");
             }
             return null;
         } else {
@@ -158,6 +166,6 @@ public class JsonRpcServlet extends HttpServlet {
     }
 
     private static boolean isValidOrNullId(@Nullable JsonValue id) {
-        return id == null || id instanceof JsonNumber || id instanceof JsonString;
+        return id == null || id instanceof JsonNumber || id instanceof JsonString || id instanceof JsonNull;
     }
 }
