@@ -30,11 +30,11 @@
         Greyson-free API (rpc-servlet) or a deliberately Greyson-native
         one (rpc-greylet).
     </description>
-    <url>https://github.com/ralfspoeth/jsonrpcservlet</url>
+    <url>https://github.com/ralfspoeth/json-rpc</url>
 
     <scm>
-        <developerConnection>scm:git:https://github.com/ralfspoeth/jsonrpcservlet.git</developerConnection>
-        <url>scm:git:https://github.com/ralfspoeth/jsonrpcservlet</url>
+        <developerConnection>scm:git:https://github.com/ralfspoeth/json-rpc.git</developerConnection>
+        <url>scm:git:https://github.com/ralfspoeth/json-rpc</url>
         <tag>HEAD</tag>
     </scm>
 
