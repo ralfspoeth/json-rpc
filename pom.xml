@@ -10,7 +10,7 @@
 
     <properties>
         <maven.compiler.release>26</maven.compiler.release>
-        <revision>0.0.4-SNAPSHOT</revision>
+        <revision>0.0.3-SNAPSHOT</revision>
     </properties>
 
     <artifactId>json-rpc</artifactId>
