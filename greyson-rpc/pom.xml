@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.ralfspoeth</groupId>
+        <artifactId>json-rpc</artifactId>
+        <version>0.0.2-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>greyson-rpc</artifactId>
+
+    <name>greyson-rpc</name>
+    <description>
+        Transport-independent JSON-RPC 2.0 processor with a Greyson-native API.
+    </description>
+
+    <dependencies>
+        <!-- Greyson: transitive part of this module's API -->
+        <dependency>
+            <groupId>io.github.ralfspoeth</groupId>
+            <artifactId>json</artifactId>
+        </dependency>
+        <!-- jspecify -->
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

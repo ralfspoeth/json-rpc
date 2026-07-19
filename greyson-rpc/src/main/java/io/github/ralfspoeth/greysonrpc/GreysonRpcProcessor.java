@@ -1,15 +1,14 @@
-package io.github.ralfspoeth.jsonrpc;
+package io.github.ralfspoeth.greysonrpc;
 
 import io.github.ralfspoeth.json.Greyson;
 import io.github.ralfspoeth.json.data.*;
 import io.github.ralfspoeth.json.io.JsonParseException;
-import io.github.ralfspoeth.json.query.Queries;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.io.UncheckedIOException;
 import java.io.Writer;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.BiFunction;
@@ -34,39 +33,15 @@ import static io.github.ralfspoeth.json.data.Builder.objectBuilder;
  * &rarr; -32602 (invalid params), any other {@link RuntimeException}
  * &rarr; -32603 (internal error).
  */
-public class JsonRpcProcessor {
+public class GreysonRpcProcessor {
     private static final String VERSION = "2.0";
 
     private final BiFunction<String, JsonValue, JsonValue> businessFunction;
 
-    public JsonRpcProcessor(BiFunction<String, JsonValue, JsonValue> businessFunction) {
+    public GreysonRpcProcessor(BiFunction<String, JsonValue, JsonValue> businessFunction) {
         this.businessFunction = Objects.requireNonNull(businessFunction);
     }
 
-    /**
-     * Creates a processor that dispatches to {@link Procedure} implementations
-     * by method name. Unknown methods map to -32601 (method not found);
-     * runtime exceptions thrown by procedures propagate unwrapped so the
-     * spec error-code mapping documented on this class applies.
-     *
-     * @param dispatcher a map from method names to {@link Procedure} instances
-     */
-    public static JsonRpcProcessor of(Map<String, Procedure> dispatcher) {
-        Objects.requireNonNull(dispatcher);
-        return new JsonRpcProcessor((method, params) -> {
-            var procedure = dispatcher.get(method);
-            if (procedure == null) {
-                throw new NoSuchElementException("Method not found: " + method);
-            }
-            try {
-                return JsonValue.of(procedure.request(Queries.asObject(params)));
-            } catch (RuntimeException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
 
     /**
      * Read a single request or a batch of requests from {@code in},
@@ -74,30 +49,36 @@ public class JsonRpcProcessor {
      * Writes nothing at all if the input consists of notifications only.
      */
     public void process(Reader in, Writer out) throws IOException {
-        final Builder<? extends JsonValue> builder;
         try {
-            var read = Greyson.readBuilder(in);
-            if (read.isEmpty()) { // empty input
-                Greyson.writeValue(out, error(JsonNull.INSTANCE, -32700, "Parse error").build());
-                return;
-            }
-            builder = read.get();
+            Greyson.readBuilder(in).ifPresentOrElse(
+                    builder -> dispatch(builder, out),
+                    // empty input
+                    () -> writeError(out, -32700, "Parse error")
+            );
         } catch (JsonParseException e) {
-            Greyson.writeValue(out, error(JsonNull.INSTANCE, -32700, "Parse error").build());
-            return;
+            writeError(out, -32700, "Parse error");
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
         }
+    }
+
+    /**
+     * Dispatch on the shape of the input: a single request, a batch,
+     * or an invalid top-level basic value.
+     */
+    private void dispatch(Builder<? extends JsonValue> builder, Writer out) {
         switch (builder) {
             // single request
             case Builder.ObjectBuilder ob -> {
                 var response = respond(ob);
                 if (response != null) {
-                    Greyson.writeValue(out, response.build());
+                    write(out, response.build());
                 }
             }
             // batch
             case Builder.ArrayBuilder ab -> {
                 if (ab.isEmpty()) { // rpc call with an empty array is invalid
-                    Greyson.writeValue(out, error(JsonNull.INSTANCE, -32600, "Invalid Request").build());
+                    writeError(out, -32600, "Invalid Request");
                     return;
                 }
                 for (var li = ab.data().listIterator(); li.hasNext(); ) {
@@ -114,9 +95,16 @@ public class JsonRpcProcessor {
                 }
             }
             // a top-level basic value is not a valid request
-            case Builder.BasicBuilder ignored ->
-                    Greyson.writeValue(out, error(JsonNull.INSTANCE, -32600, "Invalid Request").build());
+            case Builder.BasicBuilder ignored -> writeError(out, -32600, "Invalid Request");
         }
+    }
+
+    private static void write(Writer out, JsonValue value) {
+        Greyson.writeValue(out, value);
+    }
+
+    private static void writeError(Writer out, int code, String message) {
+        write(out, error(JsonNull.INSTANCE, code, message).build());
     }
 
     /**
@@ -129,7 +117,7 @@ public class JsonRpcProcessor {
         }
         var request = ob.build(); // immutable snapshot for validation
         if (!isValidRequest(request)) {
-            var id = request.get("id").filter(JsonRpcProcessor::isValidId).orElse(JsonNull.INSTANCE);
+            var id = request.get("id").filter(GreysonRpcProcessor::isValidId).orElse(JsonNull.INSTANCE);
             return error(id, -32600, "Invalid Request");
         }
         var method = request.get("method").flatMap(JsonValue::string).orElseThrow();

@@ -1,5 +1,6 @@
 package io.github.ralfspoeth.jsonrpc;
 
+import io.github.ralfspoeth.greysonrpc.GreysonRpcProcessor;
 import io.github.ralfspoeth.utf8.Utf8Reader;
 import io.github.ralfspoeth.utf8.Utf8Writer;
 import jakarta.servlet.http.HttpServlet;
@@ -20,7 +21,7 @@ public abstract class JsonRpcServlet extends HttpServlet {
      */
     private static final String JSON_CONTENT_TYPE = "application/json";
 
-    private final JsonRpcProcessor jsonRpcProcessor;
+    private final GreysonRpcProcessor jsonRpcProcessor;
 
     /**
      * Constructs a new JsonRpcServlet with the given procedure dispatcher.
@@ -28,7 +29,7 @@ public abstract class JsonRpcServlet extends HttpServlet {
      * @param dispatcher A map where keys are method names and values are {@link Procedure} instances.
      */
     public JsonRpcServlet(Map<String, Procedure> dispatcher) {
-        jsonRpcProcessor = JsonRpcProcessor.of(dispatcher);
+        jsonRpcProcessor = Dispatch.of(dispatcher);
     }
 
     /**

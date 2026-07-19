@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.ralfspoeth</groupId>
+        <artifactId>json-rpc</artifactId>
+        <version>0.0.2-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>rpc-servlet</artifactId>
+
+    <name>rpc-servlet</name>
+    <description>
+        A Java Servlet for handling JSON-RPC 2.0 requests.
+    </description>
+
+    <dependencies>
+        <!-- the JSON-RPC engine -->
+        <dependency>
+            <groupId>io.github.ralfspoeth</groupId>
+            <artifactId>greyson-rpc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Greyson: implementation detail here, not part of the exported API -->
+        <dependency>
+            <groupId>io.github.ralfspoeth</groupId>
+            <artifactId>json</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.ralfspoeth</groupId>
+            <artifactId>utf8</artifactId>
+        </dependency>
+        <!-- web sockets -->
+        <dependency>
+            <groupId>jakarta.websocket</groupId>
+            <artifactId>jakarta.websocket-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.websocket</groupId>
+            <artifactId>jakarta.websocket-client-api</artifactId>
+        </dependency>
+        <!-- servlet api -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+        </dependency>
+        <!-- jspecify -->
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+        <!-- testing -->
+        <dependency>
+            <groupId>io.github.ralfspoeth</groupId>
+            <artifactId>basix</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.ee10</groupId>
+            <artifactId>jetty-ee10-servlet</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

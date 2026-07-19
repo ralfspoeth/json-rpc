@@ -1,5 +1,6 @@
 package io.github.ralfspoeth.jsonrpc;
 
+import io.github.ralfspoeth.greysonrpc.GreysonRpcProcessor;
 
 import jakarta.websocket.OnMessage;
 
@@ -18,7 +19,7 @@ import java.util.Map;
  * implementations through the constructor.
  * <p>
  * Each incoming text message is processed by an internal
- * {@link JsonRpcProcessor}, which performs validation, dispatching,
+ * {@link GreysonRpcProcessor}, which performs validation, dispatching,
  * notification handling, batch processing and error wrapping
  * according to the JSON-RPC 2.0 specification.
  * <p>
@@ -27,12 +28,12 @@ import java.util.Map;
  * back to the peer.
  *
  * @see JsonRpcServlet
- * @see JsonRpcProcessor
+ * @see io.github.ralfspoeth.greysonrpc.GreysonRpcProcessor
  * @see Procedure
  */
 public abstract class JsonRpcWebSocket {
 
-    private final JsonRpcProcessor jsonRpcProcessor;
+    private final GreysonRpcProcessor jsonRpcProcessor;
 
     /**
      * Constructs a new JsonRpcWebSocket with the given procedure dispatcher.
@@ -41,7 +42,7 @@ public abstract class JsonRpcWebSocket {
      *                   {@link Procedure} instances handling the corresponding calls.
      */
     protected JsonRpcWebSocket(Map<String, Procedure> dispatcher) {
-        this.jsonRpcProcessor = JsonRpcProcessor.of(dispatcher);
+        this.jsonRpcProcessor = Dispatch.of(dispatcher);
     }
 
     /**
@@ -49,7 +50,7 @@ public abstract class JsonRpcWebSocket {
      * request, batch request, or notification.
      * <p>
      * The message is parsed and dispatched through the internal
-     * {@link JsonRpcProcessor}. The serialized JSON-RPC response is returned
+     * {@link GreysonRpcProcessor}. The serialized JSON-RPC response is returned
      * as a {@link String}; for pure notifications (single or batch) the
      * returned string is empty, and the WebSocket runtime will not send a
      * reply back to the peer.
