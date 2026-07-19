@@ -1,7 +1,5 @@
 package io.github.ralfspoeth.jsonrpc;
 
-import io.github.ralfspoeth.json.data.*;
-import io.github.ralfspoeth.json.query.Queries;
 import io.github.ralfspoeth.utf8.Utf8Reader;
 import io.github.ralfspoeth.utf8.Utf8Writer;
 import jakarta.servlet.http.HttpServlet;
@@ -30,13 +28,7 @@ public abstract class JsonRpcServlet extends HttpServlet {
      * @param dispatcher A map where keys are method names and values are {@link Service} instances.
      */
     public JsonRpcServlet(Map<String, Service> dispatcher) {
-        jsonRpcProcessor = new JsonRpcProcessor((s, v) -> {
-            try {
-                return JsonValue.of(dispatcher.get(s).request(Queries.asObject(v)));
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        jsonRpcProcessor = JsonRpcProcessor.of(dispatcher);
     }
 
     /**

@@ -6,6 +6,7 @@ open module io.github.ralfspoeth.rpcservlet.test {
     // logging
     requires static org.slf4j;
     // my things
+    requires io.github.ralfspoeth.greyson; // opt-in: no longer transitive via rpcservlet
     requires io.github.ralfspoeth.basix;
     requires io.github.ralfspoeth.utf8io;
     // http client

@@ -3,11 +3,13 @@ package io.github.ralfspoeth.jsonrpc;
 import io.github.ralfspoeth.json.Greyson;
 import io.github.ralfspoeth.json.data.*;
 import io.github.ralfspoeth.json.io.JsonParseException;
+import io.github.ralfspoeth.json.query.Queries;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.BiFunction;
@@ -39,6 +41,31 @@ public class JsonRpcProcessor {
 
     public JsonRpcProcessor(BiFunction<String, JsonValue, JsonValue> businessFunction) {
         this.businessFunction = Objects.requireNonNull(businessFunction);
+    }
+
+    /**
+     * Creates a processor that dispatches to {@link Service} implementations
+     * by method name. Unknown methods map to -32601 (method not found);
+     * runtime exceptions thrown by services propagate unwrapped so the
+     * spec error-code mapping documented on this class applies.
+     *
+     * @param dispatcher a map from method names to {@link Service} instances
+     */
+    public static JsonRpcProcessor of(Map<String, Service> dispatcher) {
+        Objects.requireNonNull(dispatcher);
+        return new JsonRpcProcessor((method, params) -> {
+            var service = dispatcher.get(method);
+            if (service == null) {
+                throw new NoSuchElementException("Method not found: " + method);
+            }
+            try {
+                return JsonValue.of(service.request(Queries.asObject(params)));
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     /**

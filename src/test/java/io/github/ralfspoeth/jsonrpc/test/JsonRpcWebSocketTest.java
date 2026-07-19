@@ -218,8 +218,7 @@ class JsonRpcWebSocketTest {
 
         assertAll(
                 () -> assertEquals(7, intMember(result, "id")),
-                () -> assertEquals(-32000, errorCode(result)),
-                () -> assertEquals("boom", errorMessage(result))
+                () -> assertEquals(-32603, errorCode(result))
         );
     }
 

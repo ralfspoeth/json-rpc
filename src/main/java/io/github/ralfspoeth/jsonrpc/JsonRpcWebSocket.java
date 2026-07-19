@@ -1,8 +1,6 @@
 package io.github.ralfspoeth.jsonrpc;
 
 
-import io.github.ralfspoeth.json.data.JsonValue;
-import io.github.ralfspoeth.json.query.Queries;
 import jakarta.websocket.OnMessage;
 
 import java.io.IOException;
@@ -43,13 +41,7 @@ public abstract class JsonRpcWebSocket {
      *                   {@link Service} instances handling the corresponding calls.
      */
     protected JsonRpcWebSocket(Map<String, Service> dispatcher) {
-        this.jsonRpcProcessor = new JsonRpcProcessor((s, v) -> {
-            try {
-                return JsonValue.of(dispatcher.get(s).request(Queries.asObject(v)));
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        this.jsonRpcProcessor = JsonRpcProcessor.of(dispatcher);
     }
 
     /**
