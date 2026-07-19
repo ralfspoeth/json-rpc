@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>json-rpc</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>${revision}</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -35,6 +35,7 @@
 
     <properties>
         <maven.compiler.release>26</maven.compiler.release>
+        <revision>0.0.2-SNAPSHOT</revision>
     </properties>
 
     <build>
@@ -72,6 +73,9 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <additionalOptions>--enable-preview</additionalOptions>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
