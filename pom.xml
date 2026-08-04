@@ -118,7 +118,7 @@
             <dependency>
                 <groupId>io.github.ralfspoeth</groupId>
                 <artifactId>json</artifactId>
-                <version>1.6.1</version>
+                <version>1.6.2</version>
             </dependency>
             <dependency>
                 <groupId>io.github.ralfspoeth</groupId>
@@ -128,7 +128,7 @@
             <dependency>
                 <groupId>io.github.ralfspoeth</groupId>
                 <artifactId>basix</artifactId>
-                <version>1.5.4</version>
+                <version>1.5.5</version>
             </dependency>
             <!-- jetty -->
             <dependency>
