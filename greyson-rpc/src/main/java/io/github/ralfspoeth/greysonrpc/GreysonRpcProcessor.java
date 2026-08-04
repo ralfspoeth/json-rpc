@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 import static io.github.ralfspoeth.json.data.Builder.objectBuilder;
 import static java.lang.System.Logger.Level.*;
@@ -61,10 +62,10 @@ public class GreysonRpcProcessor {
             Greyson.readValue(in).ifPresentOrElse(
                     value -> dispatch(value, out),
                     // empty input
-                    () -> writeError(out, -32700, "Parse error")
+                    () -> writeError(out, -32700, () -> "Parse error: empty input")
             );
         } catch (JsonParseException e) {
-            writeError(out, -32700, "Parse error");
+            writeError(out, -32700, () -> "Parse error: " + e.getMessage());
         } catch (UncheckedIOException e) {
             throw e.getCause();
         }
@@ -82,10 +83,11 @@ public class GreysonRpcProcessor {
             // responses retain the order of their requests
             case JsonArray arr -> {
                 if (arr.isEmpty()) { // rpc call with an empty array is invalid
-                    writeError(out, -32600, "Invalid Request");
+                    writeError(out, -32600, () -> "Invalid Request: empty array");
                 } else {
                     try (var scope = StructuredTaskScope.open()) {
-                        var subtasks = arr.elements().stream()
+                        var subtasks = arr.elements()
+                                .stream()
                                 .map(element -> scope.fork(() -> respond(element)))
                                 .toList();
                         scope.join();
@@ -98,18 +100,21 @@ public class GreysonRpcProcessor {
                         }
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        writeError(out, -32000, "Server error; batch processing interrupted");
+                        writeError(out, -32000, () -> "Server error; %s batch processing interrupted"
+                                .formatted(e.getMessage())
+                        );
                     }
                 }
             }
             // a top-level basic value is not a valid request
-            default -> writeError(out, -32600, "Invalid Request");
+            default -> writeError(out, -32600, () -> "Invalid Request: Basic: " + value);
         }
     }
 
-    private static void writeError(Writer out, int code, String message) {
-        LOGGER.get().log(WARNING, "{0} ({1})", message, code);
-        Greyson.writeValue(out, error(JsonNull.INSTANCE, code, message));
+    private static void writeError(Writer out, int code, Supplier<String> messageSupplier) {
+        var msg = messageSupplier.get();
+        LOGGER.get().log(WARNING, "{0} ({1})", msg, code);
+        Greyson.writeValue(out, error(JsonNull.INSTANCE, code, msg));
     }
 
     /**
