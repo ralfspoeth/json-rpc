@@ -6,7 +6,7 @@ A Java Servlet for handling JSON-RPC 2.0 requests.
 
 `json-rpc` provides a lightweight and easy-to-use Java Servlet designed to 
 simplify the implementation of JSON-RPC 2.0 services within your web applications.
-It leverages `io.github.ralfspoeth:json` for JSON processing and integrates 
+It leverages **Greyson** for JSON processing and integrates 
 seamlessly with standard Servlet containers.
 
 The project consists of two modules:
