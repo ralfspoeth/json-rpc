@@ -12,6 +12,7 @@ import java.io.Writer;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
@@ -98,7 +99,7 @@ public class GreysonRpcProcessor {
                         if (!responses.isEmpty()) {
                             Greyson.writeValue(out, responses);
                         }
-                    } catch (InterruptedException e) {
+                    } catch (InterruptedException | ExecutionException e) {
                         Thread.currentThread().interrupt();
                         writeError(out, -32000, () -> "Server error; %s batch processing interrupted"
                                 .formatted(e.getMessage())

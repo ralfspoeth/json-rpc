@@ -19,7 +19,7 @@
         <!-- Greyson: transitive part of this module's API -->
         <dependency>
             <groupId>io.github.ralfspoeth</groupId>
-            <artifactId>json</artifactId>
+            <artifactId>greyson</artifactId>
         </dependency>
         <!-- jspecify -->
         <dependency>
