@@ -84,6 +84,31 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.8.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -119,7 +144,7 @@
             <dependency>
                 <groupId>io.github.ralfspoeth</groupId>
                 <artifactId>utf8</artifactId>
-                <version>1.0.4</version>
+                <version>1.0.5</version>
             </dependency>
             <dependency>
                 <groupId>io.github.ralfspoeth</groupId>
@@ -130,7 +155,7 @@
             <dependency>
                 <groupId>org.eclipse.jetty.ee10</groupId>
                 <artifactId>jetty-ee10-servlet</artifactId>
-                <version>12.1.11</version>
+                <version>12.1.13</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
