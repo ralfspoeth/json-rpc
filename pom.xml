@@ -11,6 +11,7 @@
     <properties>
         <maven.compiler.release>27</maven.compiler.release>
         <revision>0.0.5-SNAPSHOT</revision>
+        <log.weaver.version>1.0</log.weaver.version>
     </properties>
 
     <artifactId>json-rpc</artifactId>
@@ -109,8 +110,28 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>io.github.ralfspoeth</groupId>
+                <artifactId>log-weaver-maven-plugin</artifactId>
+                <version>${log.weaver.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>weave</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.ralfspoeth</groupId>
+            <artifactId>log-api</artifactId>
+            <version>${log.weaver.version}</version>
+        </dependency>
+    </dependencies>
 
     <dependencyManagement>
         <dependencies>

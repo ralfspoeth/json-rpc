@@ -1,6 +1,11 @@
+import io.github.ralfspoeth.log.api.LogAll;
 import org.jspecify.annotations.NullMarked;
 
+import static java.lang.System.Logger.Level.TRACE;
+import static java.lang.reflect.Modifier.PUBLIC;
+
 @NullMarked
+@LogAll(modifiers = PUBLIC, level = TRACE)
 module io.github.ralfspoeth.greylet {
     exports io.github.ralfspoeth.greylet;
     requires transitive jakarta.servlet;
@@ -13,4 +18,5 @@ module io.github.ralfspoeth.greylet {
     requires static org.jspecify;
     // fast utf8 reader
     requires io.github.ralfspoeth.utf8io;
+    requires io.github.ralfspoeth.log.api;
 }
