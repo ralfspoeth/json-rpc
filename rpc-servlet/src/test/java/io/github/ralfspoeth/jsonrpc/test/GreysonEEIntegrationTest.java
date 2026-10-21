@@ -15,6 +15,7 @@ import org.eclipse.jetty.ee10.servlet.ServletContextHandler; // Note the 'ee11'
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.*;
 
 import java.io.IOException;
@@ -93,7 +94,7 @@ public class GreysonEEIntegrationTest {
 
         // 3. Send and receive
         var response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
-        AtomicReference<Exception> e = new AtomicReference<>();
+        AtomicReference<@Nullable Exception> e = new AtomicReference<>();
         List<JsonValue> responses = new ArrayList<>();
         try (var is = response.body();
              var rdr = new Utf8Reader(is)) {

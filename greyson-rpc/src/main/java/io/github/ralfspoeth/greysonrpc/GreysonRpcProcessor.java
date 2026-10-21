@@ -4,6 +4,7 @@ import io.github.ralfspoeth.json.Greyson;
 import io.github.ralfspoeth.json.data.*;
 import io.github.ralfspoeth.json.io.JsonParseException;
 import io.github.ralfspoeth.json.query.Queries;
+import io.github.ralfspoeth.json.query.Shape;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -41,11 +42,16 @@ import static java.lang.System.Logger.Level.*;
  */
 public class GreysonRpcProcessor {
 
+    private static final Shape REQUEST_SHAPE = Shape.object()
+            .and(Shape.member("jsonrpc", Shape.exact(Basic.of("2.0"))))
+            .and(Shape.member("method", Shape.string()))
+            .and(Shape.optional("id", Shape.number().or(Shape.string())))
+            .and(Shape.optional("params", Shape.array().or(Shape.object())));
+
+
     private static final LazyConstant<System.Logger> LOGGER = LazyConstant.of(
             () -> System.getLogger(GreysonRpcProcessor.class.getName())
     );
-
-    private static final String VERSION = "2.0";
 
     private final BiFunction<String, JsonValue, JsonValue> businessFunction;
 
@@ -135,48 +141,58 @@ public class GreysonRpcProcessor {
      * or {@link Optional#empty()} for notifications.
      */
     private Optional<JsonObject> respond(JsonValue element) {
-        if (!(element instanceof JsonObject request)) {
-            LOGGER.get().log(WARNING, "invalid request, not an object: {0}", element);
-            return Optional.of(error(JsonNull.INSTANCE, -32600, "Invalid Request"));
-        }
-        if (!isValidRequest(request)) {
-            LOGGER.get().log(WARNING, "invalid request: {0}", request);
-            var id = request.get("id").filter(GreysonRpcProcessor::isValidId).orElse(JsonNull.INSTANCE);
-            return Optional.of(error(id, -32600, "Invalid Request"));
-        }
-        var method = request.get("method").flatMap(JsonValue::string).orElseThrow();
-        var params = request.get("params").orElse(JsonNull.INSTANCE);
-        if (!request.members().containsKey("id")) { // notification: invoke, never respond
+        if (REQUEST_SHAPE.predicate().test(element)) {
+            var method = element.get("method").flatMap(JsonValue::string).orElseThrow();
+            var params = element.get("params").orElse(JsonNull.INSTANCE);
+            // absent id means notification: no response, whatever happens
+            var id = element.get("id");
             try {
-                invoke(method, params);
+                var result = invoke(method, params);
+                return id.map(v -> result(v, result));
             } catch (RuntimeException e) {
-                // errors of notifications are never reported to the peer
-                LOGGER.get().log(WARNING, "notification %s failed".formatted(method), e);
+                // a business function is not trusted to be total; its failure is
+                // this peer's problem to report, not an exception to escape into
+                // whoever happened to call process()
+                if (id.isEmpty()) {
+                    LOGGER.get().log(WARNING, "notification %s failed".formatted(method), e);
+                    return Optional.empty();
+                }
+                var failure = failureOf(method, e);
+                LOGGER.get().log(WARNING, failure.message(), e);
+                return id.map(v -> error(v, failure.code(), failure.message()));
             }
-            return Optional.empty();
+        } else {
+            // An invalid request is still answered: only a *valid* request
+            // without an id is a notification. Returning empty here would make
+            // every malformed request look like one and leave the peer waiting.
+            var violations = REQUEST_SHAPE.violations(element).toList();
+            LOGGER.get().log(WARNING, "Invalid Request: {0}", violations);
+            // Echo the id when it is usable, null when it is not: the spec
+            // requires a null id exactly when the id cannot be determined.
+            var id = element.get("id")
+                    .filter(GreysonRpcProcessor::isValidId)
+                    .orElse(JsonNull.INSTANCE);
+            return Optional.of(error(id, -32600, "Invalid Request: " + violations));
         }
-        var id = request.members().get("id");
-        JsonObject response;
-        try {
-            response = result(id, invoke(method, params));
-        } catch (NoSuchElementException | UnsupportedOperationException e) {
-            LOGGER.get().log(WARNING, "method not found: %s".formatted(method), e);
-            response = error(id, -32601, "Method not found");
-        } catch (IllegalArgumentException e) {
-            LOGGER.get().log(WARNING, "invalid params for %s: %s".formatted(method, params), e);
-            response = error(id, -32602, "Invalid params");
-        } catch (RuntimeException e) {
-            LOGGER.get().log(WARNING, "internal error in %s".formatted(method), e);
-            response = error(id, -32603, "Internal error");
-        }
-        return Optional.of(response);
     }
 
-    private static boolean isValidRequest(JsonObject request) {
-        return request.get("jsonrpc").flatMap(JsonValue::string).filter(VERSION::equals).isPresent()
-                && request.get("method").flatMap(JsonValue::string).isPresent()
-                && request.get("params").map(p -> p instanceof Aggregate).orElse(true)
-                && (!request.members().containsKey("id") || isValidId(request.members().get("id")));
+    /** A business-function failure rendered as a JSON-RPC error code and message. */
+    private record Failure(int code, String message) {}
+
+    /**
+     * Map an exception out of the business function onto the JSON-RPC error
+     * codes. Only the two cases a handler can signal meaningfully are singled
+     * out; everything else is the server's fault by definition.
+     */
+    private static Failure failureOf(String method, RuntimeException e) {
+        return switch (e) {
+            // -32601: the handler does not know this method
+            case NoSuchElementException _ -> new Failure(-32601, "method not found: " + method);
+            // -32602: it knows the method but not these arguments
+            case IllegalArgumentException _ -> new Failure(-32602, "invalid params for " + method);
+            // -32603: anything else is an internal error
+            default -> new Failure(-32603, "internal error in " + method);
+        };
     }
 
     private static boolean isValidId(JsonValue id) {
@@ -185,7 +201,7 @@ public class GreysonRpcProcessor {
 
     private static JsonObject result(JsonValue id, JsonValue result) {
         return objectBuilder()
-                .putBasic("jsonrpc", VERSION)
+                .putBasic("jsonrpc", "2.0")
                 .put("result", result)
                 .put("id", id)
                 .build();
@@ -193,7 +209,7 @@ public class GreysonRpcProcessor {
 
     private static JsonObject error(JsonValue id, int code, String message) {
         return objectBuilder()
-                .putBasic("jsonrpc", VERSION)
+                .putBasic("jsonrpc", "2.0")
                 .put("error", errorObject(code, message))
                 .put("id", id)
                 .build();

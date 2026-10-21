@@ -21,8 +21,20 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>--enable-preview</argLine>
-                    <argLine>-Djava.util.logging.config.file=${project.build.testOutputDirectory}/logging.properties</argLine>
+                    <!--
+                        One argLine only: it is a single-valued element, so a second
+                        one silently wins and the first is dropped. Overriding it here
+                        also replaces the parent's value rather than adding to it, so
+                        the preview flag and the Mockito agent have to be repeated -
+                        preview because the classes are compiled with it, and the
+                        agent because Mockito can no longer self-attach.
+                    -->
+                    <!--suppress UnresolvedMavenProperty -->
+                    <argLine>
+                        --enable-preview
+                        -javaagent:${org.mockito:mockito-core:jar}
+                        -Djava.util.logging.config.file=${project.build.testOutputDirectory}/logging.properties
+                    </argLine>
                 </configuration>
             </plugin>
         </plugins>
