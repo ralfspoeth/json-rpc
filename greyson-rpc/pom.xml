@@ -32,6 +32,12 @@
             <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- records what the weaver logs; registers its own LoggerFinder service -->
+        <dependency>
+            <groupId>io.github.ralfspoeth</groupId>
+            <artifactId>log-weaver-testkit</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- required for the surefire argLine's ${org.mockito:mockito-core:jar} -->
         <dependency>
             <groupId>org.mockito</groupId>

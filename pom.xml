@@ -11,7 +11,7 @@
     <properties>
         <maven.compiler.release>27</maven.compiler.release>
         <revision>0.0.5-SNAPSHOT</revision>
-        <log.weaver.version>1.0</log.weaver.version>
+        <log.weaver.version>1.1</log.weaver.version>
     </properties>
 
     <artifactId>json-rpc</artifactId>
@@ -162,6 +162,13 @@
                 <version>5.23.0</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- the recording System.LoggerFinder, for asserting on woven output -->
+            <dependency>
+                <groupId>io.github.ralfspoeth</groupId>
+                <artifactId>log-weaver-testkit</artifactId>
+                <version>${log.weaver.version}</version>
+                <scope>test</scope>
             </dependency>
             <!-- Greyson IO -->
             <dependency>

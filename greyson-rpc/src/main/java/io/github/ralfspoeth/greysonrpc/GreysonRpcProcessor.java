@@ -5,6 +5,7 @@ import io.github.ralfspoeth.json.data.*;
 import io.github.ralfspoeth.json.io.JsonParseException;
 import io.github.ralfspoeth.json.query.Queries;
 import io.github.ralfspoeth.json.query.Shape;
+import io.github.ralfspoeth.log.api.Log;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -16,7 +17,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.function.BiFunction;
-import java.util.function.Supplier;
 
 import static io.github.ralfspoeth.json.data.Builder.objectBuilder;
 import static java.lang.System.Logger.Level.*;
@@ -47,11 +47,10 @@ public class GreysonRpcProcessor {
             .and(Shape.member("method", Shape.string()))
             .and(Shape.optional("id", Shape.number().or(Shape.string())))
             .and(Shape.optional("params", Shape.array().or(Shape.object())));
-
-
-    private static final LazyConstant<System.Logger> LOGGER = LazyConstant.of(
-            () -> System.getLogger(GreysonRpcProcessor.class.getName())
-    );
+    
+    private static final Shape BATCH_SHAPE = Shape.array().and(Shape.each(REQUEST_SHAPE));
+    
+    private static final Shape VALID_SHAPE = REQUEST_SHAPE.or(BATCH_SHAPE);
 
     private final BiFunction<String, JsonValue, JsonValue> businessFunction;
 
@@ -69,10 +68,10 @@ public class GreysonRpcProcessor {
             Greyson.readValue(in).ifPresentOrElse(
                     value -> dispatch(value, out),
                     // empty input
-                    () -> writeError(out, -32700, () -> "Parse error: empty input")
+                    () -> writeError(out, -32700, "Parse error: empty input")
             );
         } catch (JsonParseException e) {
-            writeError(out, -32700, () -> "Parse error: " + e.getMessage());
+            writeError(out, -32700, "Parse error: " + e.getMessage());
         } catch (UncheckedIOException e) {
             throw e.getCause();
         }
@@ -85,12 +84,13 @@ public class GreysonRpcProcessor {
     private void dispatch(JsonValue value, Writer out) {
         switch (value) {
             // single request
-            case JsonObject obj -> respond(obj).ifPresent(response -> Greyson.writeValue(out, response));
+            case JsonObject obj -> respond(obj)
+                    .ifPresent(response -> Greyson.writeValue(out, response));
             // batch: requests are processed concurrently,
             // responses retain the order of their requests
             case JsonArray arr -> {
                 if (arr.isEmpty()) { // rpc call with an empty array is invalid
-                    writeError(out, -32600, () -> "Invalid Request: empty array");
+                    writeError(out, -32600, "Invalid Request: empty array");
                 } else {
                     try (var scope = StructuredTaskScope.open()) {
                         var subtasks = arr.elements()
@@ -107,39 +107,42 @@ public class GreysonRpcProcessor {
                         }
                     } catch (InterruptedException | ExecutionException e) {
                         Thread.currentThread().interrupt();
-                        writeError(out, -32000, () -> "Server error; %s batch processing interrupted"
+                        writeError(out, -32000, "Server error; %s batch processing interrupted"
                                 .formatted(e.getMessage())
                         );
                     }
                 }
             }
-            // a top-level basic value is not a valid request
-            default -> writeError(out, -32600, () -> "Invalid Request: Basic: " + value);
+            // A top-level basic value is neither a request nor a batch, so here
+            // - and only here - the whole input is wrong and VALID_SHAPE can say
+            // what was expected. It cannot gate the two cases above: BATCH_SHAPE
+            // requires every element to be valid, while the spec answers a batch
+            // element by element, so a mixed batch must reach respond() per
+            // element rather than be rejected whole.
+            default -> writeError(out, -32600,
+                    "Invalid Request: " + VALID_SHAPE.violations(value).toList());
         }
     }
 
-    private static void writeError(Writer out, int code, Supplier<String> messageSupplier) {
-        var msg = messageSupplier.get();
-        LOGGER.get().log(WARNING, "{0} ({1})", msg, code);
-        Greyson.writeValue(out, error(JsonNull.INSTANCE, code, msg));
+    @Log(level = WARNING, logReturn = false)
+    private static void writeError(Writer out, int code, String message) {
+        Greyson.writeValue(out, error(JsonNull.INSTANCE, code, message));
     }
 
-    /**
-     * Invoke the business function, logging the invocation at info
-     * and its result at debug level.
-     */
+    /** Invoke the business function; the weaver logs the call and its result. */
+    @Log(level = DEBUG)
     private JsonValue invoke(String method, JsonValue params) {
-        var log = LOGGER.get();
-        log.log(INFO, "invoking {0} with params {1}", method, params);
-        var result = businessFunction.apply(method, params);
-        log.log(DEBUG, "invoked {0} with params {1}: {2}", method, params, result);
-        return result;
+        return businessFunction.apply(method, params);
     }
 
     /**
      * Process a single request and return the response,
      * or {@link Optional#empty()} for notifications.
      */
+    // DEBUG, not WARNING: the entry log fires on every call, so logging it at
+    // WARNING would make a perfectly good request warn. Failures are reported by
+    // the weaver's Throwable catch on invoke() and by error()'s own log.
+    @Log(level = DEBUG, logReturn = false)
     private Optional<JsonObject> respond(JsonValue element) {
         if (REQUEST_SHAPE.predicate().test(element)) {
             var method = element.get("method").flatMap(JsonValue::string).orElseThrow();
@@ -154,11 +157,9 @@ public class GreysonRpcProcessor {
                 // this peer's problem to report, not an exception to escape into
                 // whoever happened to call process()
                 if (id.isEmpty()) {
-                    LOGGER.get().log(WARNING, "notification %s failed".formatted(method), e);
                     return Optional.empty();
                 }
                 var failure = failureOf(method, e);
-                LOGGER.get().log(WARNING, failure.message(), e);
                 return id.map(v -> error(v, failure.code(), failure.message()));
             }
         } else {
@@ -166,7 +167,6 @@ public class GreysonRpcProcessor {
             // without an id is a notification. Returning empty here would make
             // every malformed request look like one and leave the peer waiting.
             var violations = REQUEST_SHAPE.violations(element).toList();
-            LOGGER.get().log(WARNING, "Invalid Request: {0}", violations);
             // Echo the id when it is usable, null when it is not: the spec
             // requires a null id exactly when the id cannot be determined.
             var id = element.get("id")
@@ -199,6 +199,7 @@ public class GreysonRpcProcessor {
         return id instanceof JsonString || id instanceof JsonNumber || id instanceof JsonNull;
     }
 
+    @Log(level = DEBUG)
     private static JsonObject result(JsonValue id, JsonValue result) {
         return objectBuilder()
                 .putBasic("jsonrpc", "2.0")
@@ -207,6 +208,10 @@ public class GreysonRpcProcessor {
                 .build();
     }
 
+    // WARNING, not ERROR: a malformed request or a rejected call is the peer's
+    // fault, not a server fault, and ERROR maps to JUL SEVERE. The entry log
+    // carries code and message, which is where the -326xx diagnostics surface.
+    @Log(level = WARNING, logReturn = false)
     private static JsonObject error(JsonValue id, int code, String message) {
         return objectBuilder()
                 .putBasic("jsonrpc", "2.0")
